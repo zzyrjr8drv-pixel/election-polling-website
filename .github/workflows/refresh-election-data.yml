@@ -43,7 +43,25 @@ jobs:
               allPages(`${base}/countries?page%5Bsize%5D=250&page%5Bnumber%5D=1`),
               allPages(`${base}/elections?filter=expect_date_next_election:gte:${today}&page%5Bsize%5D=100&page%5Bnumber%5D=1&sort=expect_date_next_election`)
             ]);
-            const data = { source: 'IPU Parline API', updatedAt: new Date().toISOString(), countries, elections };
+            const field = (attributes, key) => {
+              const value = attributes?.[key]?.value ?? attributes?.[key] ?? '';
+              if (value && typeof value === 'object' && 'from' in value) return value.from;
+              return value;
+            };
+            const compactCountries = countries.map(row => ({
+              id: row.id,
+              attributes: { country_name_current: field(row.attributes, 'country_name_current') }
+            }));
+            const compactElections = elections.map(row => ({
+              id: row.id,
+              attributes: {
+                chamber: field(row.attributes, 'chamber'),
+                election_title: field(row.attributes, 'election_title'),
+                expect_date_next_election: field(row.attributes, 'expect_date_next_election'),
+                election_date: field(row.attributes, 'election_date')
+              }
+            }));
+            const data = { source: 'IPU Parline API', updatedAt: new Date().toISOString(), countries: compactCountries, elections: compactElections };
             fs.writeFileSync('election-data.json', JSON.stringify(data));
             console.log(`Saved ${countries.length} countries and ${elections.length} election records.`);
           })().catch(error => { console.error(error); process.exit(1); });
