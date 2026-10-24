@@ -1,0 +1,57 @@
+name: Refresh election source data
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 */6 * * *"
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Fetch the IPU global country and election records
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const base = 'https://api.data.ipu.org/v1';
+          async function allPages(path) {
+            let url = path, rows = [], count = 0;
+            while (url && count++ < 30) {
+              const response = await fetch(url, { headers: { accept: 'application/json' } });
+              if (!response.ok) throw new Error(`IPU returned ${response.status}`);
+              const page = await response.json();
+              rows.push(...(page.data || []));
+              url = page.links?.next || null;
+              if (url?.startsWith('http://')) url = url.replace(/^http:/, 'https:');
+            }
+            return rows;
+          }
+          (async () => {
+            const today = new Date().toISOString().slice(0, 10);
+            const [countries, elections] = await Promise.all([
+              allPages(`${base}/countries?page%5Bsize%5D=250&page%5Bnumber%5D=1`),
+              allPages(`${base}/elections?filter=expect_date_next_election:gte:${today}&page%5Bsize%5D=100&page%5Bnumber%5D=1&sort=expect_date_next_election`)
+            ]);
+            const data = { source: 'IPU Parline API', updatedAt: new Date().toISOString(), countries, elections };
+            fs.writeFileSync('election-data.json', JSON.stringify(data));
+            console.log(`Saved ${countries.length} countries and ${elections.length} election records.`);
+          })().catch(error => { console.error(error); process.exit(1); });
+          NODE
+      - name: Publish refreshed snapshot to Pages
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add election-data.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Refresh IPU election data"
+            git push
+          else
+            echo "Election data snapshot is unchanged."
+          fi
