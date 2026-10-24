@@ -58,7 +58,16 @@ jobs:
                 chamber: field(row.attributes, 'chamber'),
                 election_title: field(row.attributes, 'election_title'),
                 expect_date_next_election: field(row.attributes, 'expect_date_next_election'),
-                election_date: field(row.attributes, 'election_date')
+                election_date: field(row.attributes, 'election_date'),
+                seats_per_parties: field(row.attributes, 'seats_per_parties'),
+                number_of_seats_at_stake: field(row.attributes, 'number_of_seats_at_stake'),
+                num_parties_in_government: field(row.attributes, 'num_parties_in_government'),
+                name_of_parties_government: field(row.attributes, 'name_of_parties_government'),
+                alter_power_after_election: field(row.attributes, 'alter_power_after_election'),
+                num_women_elected: field(row.attributes, 'num_women_elected'),
+                number_men_elected: field(row.attributes, 'number_men_elected'),
+                turnout: field(row.attributes, 'turnout'),
+                sources: field(row.attributes, 'sources')
               }
             }));
             const data = { source: 'IPU Parline API', updatedAt: new Date().toISOString(), countries: compactCountries, elections: compactElections };
